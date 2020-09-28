@@ -58,6 +58,11 @@ func (s *SkipList) newLevel() {
 	s.Levels++
 }
 
+func (s *SkipList) Get(score int64) interface{} {
+	//TODO:
+	return nil
+}
+
 func (s *SkipList) Insert(score int64, val interface{}) {
 	//TODO:
 }
