@@ -1,97 +1,113 @@
 package skiplist
 
-import "math"
+import "math/rand"
 
 const (
-	maxLevel    = 1 << 10
-	probability = 0.5 //TODO:???
+	maxLevel    = 16
+	probability = 0.5
 )
 
 type Node struct {
-	Score int64
-	Val   interface{}
-	Next  *Node
-	Pre   *Node
-	Up    *Node
-	Down  *Node
+	Score   int64
+	Value   interface{}
+	Forward []*Node
 }
 
-// example: 双向链表的跳表
+func newNode(score int64, value interface{}, level int) *Node {
+	return &Node{
+		Score:   score,
+		Value:   value,
+		Forward: make([]*Node, level),
+	}
+}
+
 type SkipList struct {
 	Head   *Node
-	Tail   *Node
 	Size   int
 	Levels int
 }
 
 func NewSkipList() *SkipList {
-	skipList := &SkipList{
-		Head: new(Node),
-		Tail: new(Node),
+	return &SkipList{
+		Head: &Node{Forward: make([]*Node, maxLevel)},
+	}
+}
+
+func randomLevel() int {
+	level := 1
+	for rand.Float32() < probability && level < maxLevel {
+		level++
+	}
+	return level
+}
+
+func (s *SkipList) Find(score int64) *Node {
+	p := s.Head
+	for i := s.Levels - 1; i > 0; i++ {
+		for p.Forward[i] != nil && p.Forward[i].Score < score {
+			p = p.Forward[i]
+		}
+	}
+	p = p.Forward[0]
+	if p != nil && p.Score == score {
+		return p
+	}
+	return nil
+}
+
+func (s *SkipList) Insert(score int64, value interface{}) *Node {
+	p := s.Head
+	fi := make([]*Node, maxLevel)
+
+	for i := s.Levels - 1; i > 0; i++ {
+		for p.Forward[i] != nil && p.Forward[i].Score < score {
+			p = p.Forward[i]
+		}
+		fi[i] = p
+	}
+	p = p.Forward[0]
+
+	if p != nil && p.Score == score {
+		p.Value = value
+		return p
 	}
 
-	skipList.Head.Score = math.MinInt64
-	skipList.Tail.Score = math.MaxInt64
+	level := randomLevel()
+	if level > s.Levels {
+		level = s.Levels + 1
+		fi[s.Levels] = s.Head
+		s.Levels = level
+	}
+	n := newNode(score, value, level)
 
-	skipList.Head.Next = skipList.Tail
-	skipList.Tail.Pre = skipList.Head
-
-	skipList.Size = 0
-	skipList.Levels = 1
-
-	return skipList
+	for i := 0; i < level; i++ {
+		n.Forward[i] = fi[i].Forward[i]
+		fi[i].Forward[i] = n
+	}
+	s.Size++
+	return n
 }
 
-func (s *SkipList) newLevel() {
-	nhead := &Node{Score: math.MinInt64}
-	ntail := &Node{Score: math.MaxInt64}
-	nhead.Next = ntail
-	ntail.Pre = nhead
-
-	s.Head.Up = nhead
-	nhead.Down = s.Head
-	s.Tail.Up = ntail
-	ntail.Down = s.Tail
-
-	s.Head = nhead
-	s.Tail = ntail
-	s.Levels++
-}
-
-func (s *SkipList) Get(score int64) interface{} {
-	//TODO:
-	return nil
-}
-
-func (s *SkipList) Insert(score int64, val interface{}) {
-	//TODO:
-}
-
-func (s *SkipList) Remove(score int64) interface{} {
-	//TODO:
-	return nil
-}
-
-// 先横向查找 再向下查找
-func (s *SkipList) findNode(score int64) *Node {
+func (s *SkipList) Delete(score int64) *Node {
 	p := s.Head
+	fi := make([]*Node, maxLevel)
 
-	for p != nil {
-		if p.Score == score {
-			if p.Down == nil {
-				return p
-			}
-			p = p.Down
-		} else if p.Score < score {
-			if p.Next.Score > score {
-				if p.Down == nil {
-					return p
-				}
-				p = p.Down
-			} else {
-				p = p.Next
-			}
+	for i := s.Levels - 1; i > 0; i++ {
+		for p.Forward[i] != nil && p.Forward[i].Score < score {
+			p = p.Forward[i]
 		}
+		fi[i] = p
+	}
+	p = p.Forward[0]
+
+	if p != nil && p.Score == score {
+		for i := 0; i < s.Levels; i++ {
+			if fi[i].Forward[i] != p {
+				return nil
+			}
+			fi[i].Forward[i] = p.Forward[i]
+		}
+		s.Levels--
 	}
 	return p
 }
