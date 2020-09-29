@@ -1,6 +1,9 @@
 package skiplist
 
-import "math/rand"
+import (
+	"math/rand"
+	"time"
+)
 
 const (
 	maxLevel    = 16
@@ -35,7 +38,8 @@ func NewSkipList() *SkipList {
 
 func randomLevel() int {
 	level := 1
-	for rand.Float32() < probability && level < maxLevel {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for r.Float32() < probability && level < maxLevel {
 		level++
 	}
 	return level
@@ -43,7 +47,7 @@ func randomLevel() int {
 
 func (s *SkipList) Find(score int64) *Node {
 	p := s.Head
-	for i := s.Levels - 1; i > 0; i++ {
+	for i := s.Levels - 1; i >= 0; i-- {
 		for p.Forward[i] != nil && p.Forward[i].Score < score {
 			p = p.Forward[i]
 		}
@@ -59,12 +63,13 @@ func (s *SkipList) Insert(score int64, value interface{}) *Node {
 	p := s.Head
 	fi := make([]*Node, maxLevel)
 
-	for i := s.Levels - 1; i > 0; i++ {
+	for i := s.Levels - 1; i >= 0; i-- {
 		for p.Forward[i] != nil && p.Forward[i].Score < score {
 			p = p.Forward[i]
 		}
 		fi[i] = p
 	}
+
 	p = p.Forward[0]
 
 	if p != nil && p.Score == score {
@@ -92,7 +97,7 @@ func (s *SkipList) Delete(score int64) *Node {
 	p := s.Head
 	fi := make([]*Node, maxLevel)
 
-	for i := s.Levels - 1; i > 0; i++ {
+	for i := s.Levels - 1; i >= 0; i-- {
 		for p.Forward[i] != nil && p.Forward[i].Score < score {
 			p = p.Forward[i]
 		}
